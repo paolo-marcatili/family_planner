@@ -1,6 +1,6 @@
 # Family Planner
 
-A privacy-conscious shared weekly planner for two organizers and their household. The current public demo is a calendar-first, browser-local prototype: click a time slot to add an item, click an event/task to edit it, and click an owner chip to change responsibility.
+A privacy-conscious shared weekly planner for two organizers and their household. The current public demo is a calendar-first, browser-local prototype: click an item for quick actions, double-click it to edit on desktop, and use the visible Edit action on touch devices.
 
 ## Current scope
 
@@ -10,10 +10,10 @@ A privacy-conscious shared weekly planner for two organizers and their household
 - Explicitly human-reviewed AI proposals (never auto-approved)
 - Obfuscated work annotations such as online, listen-only, critical, and fixed
 - Future support for events, recurring events, tasks, assignments, and conflict warnings
-- JSON file import first; authenticated API import is documented for a future PocketBase-compatible backend
+- JSON file import first; accepted events are intended to be written to a shared family calendar rather than an application database
 - GitHub Pages deployment workflow for the static frontend
 
-The demo does **not** connect to Outlook, Gmail, Aula, or a production backend. Edits are stored only in the current browser's localStorage and are not shared between organizers. Calendar shortcut cards are intentionally not connected. Do not add Aula feed URLs, raw calendar data, credentials, or confidential work details to this repository.
+The demo does **not** connect to Outlook, Gmail, Aula, or a production calendar provider. Edits are stored only as a non-authoritative browser cache and are not shared between organizers. Calendar shortcut cards are intentionally not connected. Do not add Aula feed URLs, raw calendar data, credentials, or confidential work details to this repository.
 
 ## Local development
 
@@ -93,17 +93,12 @@ The same contract is intended for file upload and a future authenticated API. Se
 
 The repository is public: `https://github.com/paolo-marcatili/family_planner`. The workflow in `.github/workflows/deploy-pages.yml` publishes the static frontend at `https://paolo-marcatili.github.io/family_planner/`. A future backend must be hosted separately; GitHub Pages cannot provide authentication or shared persistence.
 
-## Local PocketBase backend setup (future integration)
+## Shared calendar and local credentials
 
-The current demo has no backend. When implementing shared authentication and persistence, run PocketBase locally as a separate process; the frontend must communicate with it through an environment variable rather than hard-coding a URL.
+The current demo has no calendar provider connection. The planned source of truth is a shared family calendar: accepted event creates/updates are mirrored there, and Family Planner-owned events carry a versioned JSON metadata block plus a stable marker. See [`docs/calendar-authority.md`](docs/calendar-authority.md).
 
-1. Download the PocketBase release appropriate for your operating system from the official PocketBase release page and keep the binary outside the repository, or run the pinned version in Docker.
-2. Start it locally with `./pocketbase serve --http=127.0.0.1:8090`. The admin UI is then available at `http://127.0.0.1:8090/_/`; create a local admin account.
-3. Create an `users` auth collection and collections for `households`, `household_members`, `people`, `events`, `tasks`, `work_days`, `work_blocks`, `import_batches`, and `proposals`. Store timestamps as ISO date-times and keep the household ID on every shared record.
-4. Add authorization rules so a signed-in user can read/write only records belonging to a household where they are a member. Never use an open rule in production.
-5. Set `VITE_API_BASE_URL=http://127.0.0.1:8090` in an untracked `.env.local` file when the frontend adapter is implemented. Never commit `.env.local` or admin credentials.
-6. Back up the local `pb_data/` directory while PocketBase is stopped. Test restoring a copy before using the service for real family data.
+Passwords cannot be safely encoded into a public GitHub Pages app. Use provider OAuth with PKCE and short-lived session tokens where supported. If a provider requires a secret, use a local OS-keychain/local-companion workflow; never commit the password, refresh token, or client secret. See [`docs/security-credentials.md`](docs/security-credentials.md).
 
-For production, add HTTPS, a real domain, CORS restricted to the Pages origin, encrypted backups, update monitoring, account recovery, scoped API import tokens, and a documented EU hosting provider. GitHub Pages does not provide any of these backend functions. See [`docs/deployment.md`](docs/deployment.md) and [`docs/privacy.md`](docs/privacy.md).
+For production calendar synchronization, add provider OAuth scopes, exact redirect URIs, HTTPS, token revocation, provider-specific rate/error handling, marker-scoped deletion, and a tested export/import fallback. GitHub Pages does not itself provide synchronization or secret storage. See [`docs/deployment.md`](docs/deployment.md), [`docs/security-credentials.md`](docs/security-credentials.md), and [`docs/privacy.md`](docs/privacy.md).
 
-The repository includes the local backend foundation in [`backend/pocketbase/`](backend/pocketbase/), including Docker Compose, collection/access-rule specification, and backup/reset guidance. It is intentionally not connected to the public demo until authentication and backend persistence are enabled end to end.
+The older PocketBase preparation in [`backend/pocketbase/`](backend/pocketbase/) is retained for history but is superseded by the shared-calendar architecture. It is not an active event store.

@@ -28,7 +28,7 @@ Meals and school-food planning are intentionally reserved for a later domain mod
 
 The public GitHub Pages application is currently a browser-local prototype. It renders synthetic records, writes edits to localStorage, and has no user authentication or shared database. This is useful for testing interaction design but is not suitable for real household data or two-device synchronization.
 
-The local backend foundation is in `backend/pocketbase/`. It provides a pinned Docker Compose starting point, collection/rule specification, and a credential-free frontend adapter boundary. It does not provision a service or switch the public demo into backend mode automatically.
+The active implementation boundary is the shared family calendar, not a database. The earlier PocketBase files are retained as historical preparation but are superseded and must not be used as an event store. See `docs/calendar-authority.md`.
 
 ## Backend collection outline
 

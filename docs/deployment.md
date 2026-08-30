@@ -4,11 +4,11 @@
 
 The frontend is designed for GitHub Pages. The workflow builds the Vite app and publishes `dist/`. Enable Pages using GitHub Actions in the repository settings. The Vite base path is `/family_planner/`.
 
-## Local PocketBase backend
+## Database architecture superseded
 
-GitHub Pages cannot run authentication or a database. A future PocketBase-compatible backend needs a continuously available host, HTTPS, backups, and an operational owner. The provider is deliberately not selected by this scaffold.
+The previous PocketBase preparation is superseded. The active design has no application database: the shared family calendar is authoritative. GitHub Pages serves the application, while a future calendar provider adapter performs authenticated calendar reads/writes.
 
-For local development:
+For historical local backend reference only:
 
 1. Download the PocketBase release matching your operating system from the official PocketBase releases page, or use a pinned Docker image. Keep the binary/image configuration outside the Git repository.
 2. Start PocketBase on loopback only: `./pocketbase serve --http=127.0.0.1:8090`.
@@ -17,7 +17,7 @@ For local development:
 5. When a frontend adapter exists, put `VITE_API_BASE_URL=http://127.0.0.1:8090` in an untracked `.env.local`. Never commit admin credentials or tokens.
 6. Stop PocketBase before copying `pb_data/` for a local backup. Restore a copy in a disposable directory and verify login and data reads before relying on a backup.
 
-The current frontend has no backend adapter, so these steps are preparation rather than a complete end-to-end setup.
+The current frontend does not use PocketBase. Do not provision or connect it as an event database unless the architecture is explicitly amended again.
 
 The repository includes `backend/pocketbase/docker-compose.yml`, `backend/pocketbase/collections.md`, and `backend/pocketbase/README.md` as the canonical local setup assets. `backend/pocketbase/pb_data/` is ignored and must never be committed.
 
