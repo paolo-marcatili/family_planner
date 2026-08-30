@@ -105,6 +105,33 @@ Use **Weekly Review** once per week for a complete reconciliation over a chosen 
 
 The Workload view separates scheduled time from household contribution. Donut charts break down organizer time by category; contribution bars use effort estimates, split Both assignments 50/50 by default, and show Unassigned separately. These are discussion indicators, not an objective fairness score.
 
+## ChatGPT prompt library
+
+Settings contains editable preliminary prompts for **Weekly/long-term**, **Incremental**, and **Urgent** planning. Copy a prompt, replace its placeholders with your condensed/obfuscated summary, and revise it in your company ChatGPT. The default prompts instruct ChatGPT to:
+
+- treat the shared calendar as authoritative;
+- preserve accepted events and duties;
+- return only affected deltas for incremental/urgent requests;
+- keep inferred assignments as proposals requiring approval;
+- return schema-versioned JSON; and
+- exclude raw emails, raw calendar payloads, feed URLs, passwords, tokens, and confidential work details.
+
+These prompts are starting points, not a replacement for validating the generated JSON and reviewing changes.
+
+## Route to the final functional product
+
+The current public app is a local/demo client. The remaining path is:
+
+1. **Select the shared-calendar provider:** confirm whether the authoritative shared calendar is Google Calendar, Outlook/Exchange, Apple/iCloud, or another provider. Verify API support for event descriptions, extended properties, stable IDs, OAuth PKCE, and web-app redirects.
+2. **Prove login and read-only access:** register a development OAuth app with exact localhost and Pages redirect URIs, implement PKCE/session/logout, and read only the selected shared calendar. Do not use a password in the frontend.
+3. **Prove one marked write:** create one synthetic event with the `X-FAMILY-PLANNER` metadata block, read it back, update it, and verify an unmarked event is untouched.
+4. **Make calendar authority operational:** map app actions to provider create/update/delete, preserve user description text, reconcile external changes, and disable destructive operations when the marker cannot be preserved.
+5. **Add safe planning workflows:** connect file/API JSON imports, weekly/incremental/urgent modes, protected accepted duties, delta previews, and non-time-bound task conversion.
+6. **Add filtered work-calendar export:** export only approved subsets using a separate target marker. Provide preview, audit information, and marker-scoped bulk removal.
+7. **Pilot with synthetic data, then household data:** test two devices and both organizers, recovery/revocation, provider rate limits, offline behavior, backups/exports, accessibility, and deletion before real use.
+
+There is no final-product definition of done until the provider login, marked event write/read-back, external-change reconciliation, filtered export, and multi-device household pilot all pass.
+
 ## Repository and deployment
 
 The repository is public: `https://github.com/paolo-marcatili/family_planner`. The workflow in `.github/workflows/deploy-pages.yml` publishes the static frontend at `https://paolo-marcatili.github.io/family_planner/`. A future backend must be hosted separately; GitHub Pages cannot provide authentication or shared persistence.

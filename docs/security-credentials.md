@@ -26,6 +26,10 @@ An encrypted local file is acceptable only when the encryption key is supplied s
 - Add preview and confirmation before export or bulk removal.
 - Never delete an event lacking the `X-FAMILY-PLANNER` marker.
 
+## Practical recommendation for this app
+
+Because the app is a public static GitHub Pages site, do not implement a password form that sends or stores a shared calendar password. Use OAuth PKCE with the selected provider. If the provider only supports a confidential client or an app password, the secure alternatives are a small private local companion using the OS keychain, or a separately hosted private backend; neither can be replaced by encoding the password into this public frontend.
+
 ## Shared-calendar implication
 
 Because the calendar—not an application database—is authoritative, a future connector must treat provider event IDs and the `X-FAMILY-PLANNER` metadata marker as security boundaries. A local cache may contain only a copy for rendering and reconciliation. If a provider cannot preserve or expose the marker, disable update/delete operations and offer export only.
