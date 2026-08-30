@@ -1,14 +1,13 @@
 # Privacy and security
 
-This project handles family routines and may receive work-availability metadata. Treat all schedule data as private.
+Family Planner handles private household schedules and work-availability metadata.
 
-- Never commit Aula feed URLs, raw Aula messages, calendar exports, credentials, access tokens, or confidential meeting titles.
-- Store only condensed, obfuscated work annotations such as online, listen-only, critical, fixed, or flexible.
-- Keep secrets in deployment configuration, never in the frontend bundle or Git history.
-- Use separate organizer accounts and enforce household-level authorization in the backend.
-- Use a dedicated, revocable, import-only API token for the external planning assistant.
-- Provide import history, approval history, export, and deletion capabilities before production use.
-- Prefer EU hosting for the backend and encrypted backups with tested restore procedures.
-- Rotate any calendar-feed URL that has been exposed outside its intended private context.
-
-The repository's example payload uses synthetic dates and names. It is not a household fixture.
+- Never commit Google client secrets, access/refresh tokens, calendar IDs, ingestion tokens, Aula feed URLs, raw emails, raw calendar exports, or confidential meeting titles.
+- The Google password is entered only into Google Identity Services. Family Planner never creates, transmits, or stores it.
+- The public OAuth client ID is configuration, not a secret. Keep exact origins/redirects and minimum scopes.
+- Local storage is a replaceable draft/settings/cache layer, not the source of truth.
+- The shared Google Calendar is private and shared only with intended organizer accounts.
+- Apps Script proposals are stored in a separate private proposal calendar and never auto-approved.
+- Rotate/revoke the Apps Script token and Google session after suspected exposure.
+- Bulk deletion applies only to exactly marked Family Planner events after preview/confirmation.
+- Use synthetic calendars and test accounts until the production release checklist passes.

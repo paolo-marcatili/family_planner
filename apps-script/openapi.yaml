@@ -1,0 +1,51 @@
+openapi: 3.1.0
+info:
+  title: Family Planner Proposal Ingestion
+  version: 1.0.0
+servers:
+  - url: https://script.google.com/macros/s/REPLACE_WITH_DEPLOYMENT_ID/exec
+paths:
+  /:
+    post:
+      operationId: ingestFamilyPlannerProposals
+      summary: Stage condensed family-planning proposals for review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [request_id, auth, payload]
+              properties:
+                request_id:
+                  type: string
+                  pattern: '^[A-Za-z0-9._:-]{8,128}$'
+                auth:
+                  type: object
+                  required: [token]
+                  properties:
+                    token:
+                      type: string
+                payload:
+                  type: object
+                  required: [schema_version, week_start, timezone, generated_at, proposals]
+                  properties:
+                    schema_version:
+                      const: '1.0'
+                    week_start:
+                      type: string
+                      format: date
+                    timezone:
+                      const: Europe/Copenhagen
+                    generated_at:
+                      type: string
+                      format: date-time
+                    proposals:
+                      type: array
+                      maxItems: 200
+                      items:
+                        type: object
+                        required: [external_id, type, status, source]
+      responses:
+        '200':
+          description: Structured success or validation error response

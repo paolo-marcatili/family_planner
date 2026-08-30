@@ -14,12 +14,15 @@ From the repository root:
 
 ```bash
 npm ci
+npm test
 npm run check
 npm run build
 npm run preview -- --host 127.0.0.1 --port 4173
 ```
 
 The smoke test uses an ephemeral localhost port, requests the built `/family_planner/` page, and checks that a generated asset is served.
+
+Unit tests cover week calculations, metadata mapping, mock calendar ownership/deletion, Google client validation, proposal-inbox parsing, reconciliation, and ingestion-token invariants.
 
 ## Manual browser checklist
 

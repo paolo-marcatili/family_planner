@@ -49,6 +49,30 @@ npm run build
 
 The complete test and deployment checklist is in [`docs/testing.md`](docs/testing.md).
 
+## Production-oriented setup overview
+
+1. Start locally with `npm ci && npm run dev`.
+2. Follow [`docs/google-calendar-setup.md`](docs/google-calendar-setup.md) to create the Google Cloud OAuth client and shared calendar.
+3. In the app, open **Settings → Google Calendar Setup**. Enter only the public client ID, connect through Google, select the authoritative calendar, and run the read test. The app never asks for your Google password.
+4. Keep real client/calendar values in `.env.local` or the local Settings wizard. Do not commit them.
+5. Follow [`docs/chatgpt-ingestion.md`](docs/chatgpt-ingestion.md) to deploy the Apps Script proposal bridge. Generate a separate ingestion token in Settings or Apps Script; it is not your Google password.
+6. Keep JSON upload as fallback until corporate ChatGPT protected Action authentication is confirmed.
+7. Complete [`docs/production-release.md`](docs/production-release.md) before using real family data.
+
+Code ownership and extension points are described in [`docs/codebase.md`](docs/codebase.md); common failures are in [`docs/troubleshooting.md`](docs/troubleshooting.md).
+
+### Guided setup in the app
+
+Open **Settings → Google Calendar Setup**:
+
+1. Enter the public Google OAuth client ID. Do not enter a client secret or Google password.
+2. Click **Connect Google Calendar**. The password/consent UI is provided by Google Identity Services.
+3. Select the authoritative shared calendar and optional proposal-inbox calendar from the calendars returned by Google.
+4. Run the read test before attempting any write.
+5. Use synthetic marked events until the production release checklist passes.
+
+The public client ID and selected calendar IDs may be stored locally for convenience, but access tokens remain memory-only and must be revoked on disconnect. Real Google login requires the OAuth client/origins configured in Google Cloud.
+
 ## JSON import format
 
 Imports are JSON documents validated against [`packages/plan-schema/weekly-plan.schema.json`](packages/plan-schema/weekly-plan.schema.json). The synthetic example is [`packages/plan-schema/example-weekly-plan.json`](packages/plan-schema/example-weekly-plan.json).
@@ -134,7 +158,7 @@ There is no final-product definition of done until the provider login, marked ev
 
 ## Repository and deployment
 
-The repository is public: `https://github.com/paolo-marcatili/family_planner`. The workflow in `.github/workflows/deploy-pages.yml` publishes the static frontend at `https://paolo-marcatili.github.io/family_planner/`. A future backend must be hosted separately; GitHub Pages cannot provide authentication or shared persistence.
+The repository is public: `https://github.com/paolo-marcatili/family_planner`. The workflow in `.github/workflows/deploy-pages.yml` publishes the static frontend at `https://paolo-marcatili.github.io/family_planner/`. Google Calendar—not an application database—is the planned authoritative event store.
 
 ## Shared calendar and local credentials
 
@@ -146,4 +170,8 @@ For production calendar synchronization, add provider OAuth scopes, exact redire
 
 Google Calendar is the selected source-of-truth provider. Follow [`docs/google-calendar-setup.md`](docs/google-calendar-setup.md) for creating/selecting the shared calendar, Google Cloud OAuth/PKCE setup, login, calendar selection, metadata rules, and pre-production verification. The current public build does not yet use real Google credentials or connect to a calendar.
 
-The older PocketBase preparation in [`backend/pocketbase/`](backend/pocketbase/) is retained for history but is superseded by the shared-calendar architecture. It is not an active event store.
+For programmatic ChatGPT ingestion, deploy the Google Apps Script proposal bridge using [`docs/chatgpt-ingestion.md`](docs/chatgpt-ingestion.md). Use a protected Action secret only if your company ChatGPT platform supports hiding/injecting the request-body token; otherwise export the digested result as JSON and upload it through the app.
+
+Before using real household data, complete every gate in [`docs/production-release.md`](docs/production-release.md).
+
+Superseded PocketBase/database runtime files have been removed from the production code path to avoid two competing sources of truth.

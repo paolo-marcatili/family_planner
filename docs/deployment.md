@@ -1,36 +1,28 @@
-# Deployment
+# Deployment and production setup
 
-## Frontend
+## Static frontend
 
-The frontend is designed for GitHub Pages. The workflow builds the Vite app and publishes `dist/`. Enable Pages using GitHub Actions in the repository settings. The Vite base path is `/family_planner/`.
+GitHub Pages hosts the Vite frontend from `.github/workflows/deploy-pages.yml`. The deployed base path is `/family_planner/`.
 
-## Database architecture superseded
+## Google Cloud configuration
 
-The previous PocketBase preparation is superseded. The active design has no application database: the shared family calendar is authoritative. GitHub Pages serves the application, while a future calendar provider adapter performs authenticated calendar reads/writes.
+Follow `docs/google-calendar-setup.md`:
 
-For historical local backend reference only:
+1. Create a Google Cloud project and enable Google Calendar API.
+2. Configure OAuth consent and add Paolo/Anna as test users during development.
+3. Create a Web OAuth client with exact localhost and `https://paolo-marcatili.github.io` origins.
+4. Put only the public client ID in local/deployment configuration. Never add a client secret.
+5. Create/share a dedicated Google Calendar and select it through the setup wizard.
 
-1. Download the PocketBase release matching your operating system from the official PocketBase releases page, or use a pinned Docker image. Keep the binary/image configuration outside the Git repository.
-2. Start PocketBase on loopback only: `./pocketbase serve --http=127.0.0.1:8090`.
-3. Open `http://127.0.0.1:8090/_/`, create a local admin account, and create the collections described in `docs/architecture.md`: `users`, `households`, `household_members`, `people`, `events`, `tasks`, `work_days`, `work_blocks`, `import_batches`, and `proposals`.
-4. Configure the `users` collection as an auth collection. Add a household relation to shared collections. Rules must require an authenticated user and a membership record for the target household; do not use public `true` rules.
-5. When a frontend adapter exists, put `VITE_API_BASE_URL=http://127.0.0.1:8090` in an untracked `.env.local`. Never commit admin credentials or tokens.
-6. Stop PocketBase before copying `pb_data/` for a local backup. Restore a copy in a disposable directory and verify login and data reads before relying on a backup.
+## Apps Script ingestion bridge
 
-The current frontend does not use PocketBase. Do not provision or connect it as an event database unless the architecture is explicitly amended again.
+Follow `apps-script/README.md`:
 
-The repository includes `backend/pocketbase/docker-compose.yml`, `backend/pocketbase/collections.md`, and `backend/pocketbase/README.md` as the canonical local setup assets. `backend/pocketbase/pb_data/` is ignored and must never be committed.
+1. Deploy the Apps Script under the proposal-calendar owner account.
+2. Run the one-time setup to create a private proposal calendar and random ingestion token.
+3. Configure the company ChatGPT custom Action if available, otherwise use `curl` for testing and retain JSON file upload.
+4. Rotate the ingestion token independently of Google OAuth.
 
-Before production deployment, decide:
+## Production release
 
-- backend provider and data region;
-- domain and HTTPS termination;
-- authentication and household authorization rules;
-- API-token storage, rotation, and revocation;
-- encrypted backups and restore testing;
-- monitoring and update responsibility;
-- CORS policy allowing only the intended frontend origin.
-
-Production must also use HTTPS, a non-admin scoped import token, rate limits, payload size limits, account recovery, audit logging, encrypted backups, restore drills, and an update/monitoring owner. The calendar-sync layer should use provider-approved OAuth scopes and write only the explicitly approved blocks (for example, commute buffers), not raw source data.
-
-No production service or credential is provisioned by the initial repository setup.
+Do not use real family data until `docs/production-release.md` is complete. At minimum, test two users/devices, login/logout/revoke, calendar selection, marked round-trip writes, external edits, duplicate ingestion, failure recovery, mobile/accessibility, and data export/removal.

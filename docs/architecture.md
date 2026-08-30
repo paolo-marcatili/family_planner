@@ -1,50 +1,39 @@
-# Architecture
+# Production architecture
 
-## Boundary
+## Source of truth
 
-The static React frontend is hosted separately from the future authenticated backend. GitHub Pages serves assets only; it must not hold credentials or shared household state. The current browser-local prototype intentionally stores synthetic demo edits in localStorage so the interaction model can be tested before backend selection.
+The selected shared Google Calendar is the authoritative event store. Family Planner does not use an application database.
 
-The planned backend boundary is a PocketBase-compatible HTTPS API, but provider, hosting, and operational choices remain deferred. The backend will own authentication, household membership, events, recurring events, tasks, assignments, work-day statuses, proposal batches, and audit history.
+- Google Calendar holds accepted timed events and scheduled tasks.
+- Family Planner metadata is stored in Google private extended properties and a portable, versioned description block.
+- Local browser storage holds only drafts, UI settings, prompt templates, selected calendar ID, and a replaceable cache.
+- A changed Google event wins over a stale local cache. The app must show a delta rather than overwrite external changes.
 
-## Core concepts
+## Frontend modules
 
-- **People:** two organizers plus children/household members. Leo and Elliott participate in routine childcare planning; Matilde is recorded but excluded from that default view.
-- **Events:** time-bound commitments.
-- **Tasks:** work that can have a due date without a fixed time.
-- **Work days:** first-class office/home/leave/unknown status with suggested or confirmed state.
-- **Proposals:** imported records that remain proposed until a human approves, edits, defers, or rejects them.
+| Area | Responsibility |
+|---|---|
+| `src/domain/` | Planner types, constants, dates, pure rules |
+| `src/components/` | Presentation-only calendar, tasks, workload, decisions, settings |
+| `src/features/setup/` | Guided Google onboarding and connection state |
+| `src/providers/` | Google Identity, Google Calendar repository, mock repository |
+| `src/services/` | Local draft/settings/cache persistence |
+| `src/lib/` | Calendar metadata, import validation, ICS export, sync filtering |
+| `apps-script/` | Authenticated ChatGPT ingestion bridge and proposal-inbox calendar staging |
 
-## MVP sequence
+## Google connection
 
-1. Static scaffold and import contract (this repository state).
-2. Backend/authentication and household access control.
-3. Event/task/recurrence management.
-4. Proposal review and deterministic conflict warnings.
-5. API import and production deployment.
+The public browser app loads Google Identity Services and requests short-lived calendar-list and calendar-events scopes. The Google password is entered only into Google's consent UI; Family Planner never receives or stores it. The OAuth client ID and selected calendar ID are configuration, while access tokens remain in memory.
 
-Meals and school-food planning are intentionally reserved for a later domain module.
+When connected, `GoogleCalendarRepository` provides calendar list/read/create/update/delete operations. Unmarked events are read-only. Every managed write includes `X-FAMILY-PLANNER`, a version, and stable planner ID, and must be read back after the operation.
 
-## Current implementation boundary
+## Programmatic ingestion
 
-The public GitHub Pages application is currently a browser-local prototype. It renders synthetic records, writes edits to localStorage, and has no user authentication or shared database. This is useful for testing interaction design but is not suitable for real household data or two-device synchronization.
+Company ChatGPT submits the Family Planner 1.0 JSON envelope to a Google Apps Script web app. The bridge validates a separate ingestion token and request ID, rejects invalid or duplicate proposals, and stages proposals in a private proposal-inbox Google Calendar. The app reviews these proposals and promotes only approved items into the authoritative shared calendar. JSON file upload remains available when a custom Action is not supported.
 
-The active implementation boundary is the shared family calendar, not a database. The earlier PocketBase files are retained as historical preparation but are superseded and must not be used as an event store. See `docs/calendar-authority.md`.
+## Trust boundaries
 
-## Backend collection outline
-
-When the shared backend is implemented, use household-scoped records with these relationships:
-
-| Collection | Purpose | Key relationships |
-|---|---|---|
-| `users` | PocketBase authentication accounts | Organizer identity |
-| `households` | Shared family container and timezone defaults | One or more members |
-| `household_members` | Membership and role | `household`, `user` |
-| `people` | Organizers, children, and other household members | `household` |
-| `events` | Accepted time-bound commitments | `household`, optional `people`, `assigned_to` |
-| `tasks` | Accepted actions and due dates | `household`, optional `people`, `assigned_to` |
-| `work_days` | Daily office/home/leave states | `household`, organizer person |
-| `work_blocks` | Obfuscated work time blocks | `household`, organizer person |
-| `import_batches` | Source import metadata and audit trail | `household` |
-| `proposals` | Pending/reviewed imported records | `import_batch`, optional accepted record |
-
-All shared records should carry a household relation and be protected by membership-based API rules. Do not expose PocketBase admin APIs to the frontend.
+- No Google password, client secret, access token, refresh token, calendar ID, ingestion token, Aula feed URL, or raw work/school content is committed.
+- The Apps Script ingestion token is separate from Google login and is rotated independently.
+- Public weather requests include only Copenhagen coordinates and weather fields.
+- External/unmarked calendar events are never modified or deleted by bulk operations.

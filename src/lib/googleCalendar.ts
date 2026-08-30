@@ -15,6 +15,8 @@ export const GOOGLE_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.e
 
 export type GoogleCalendarEvent = {
   id?: string
+  etag?: string
+  updated?: string
   summary: string
   description?: string
   start: { dateTime?: string; date?: string; timeZone?: string }
@@ -30,14 +32,10 @@ export function validateGoogleCalendarConfig(config: GoogleCalendarConfig) {
   return config
 }
 
-export function googleAuthorizationUrl(config: GoogleCalendarConfig, state: string, codeChallenge: string) {
-  validateGoogleCalendarConfig(config)
-  const params = new URLSearchParams({ client_id: config.clientId, redirect_uri: config.redirectUri, response_type: 'code', scope: config.scopes.join(' '), access_type: 'offline', state, code_challenge: codeChallenge, code_challenge_method: 'S256', include_granted_scopes: 'true' })
-  return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
-}
-
-export function toGoogleEvent(event: { id: string; title: string; description?: string; start: string; end: string; timeZone?: string }): GoogleCalendarEvent {
-  return { summary: event.title, description: event.description, start: { dateTime: event.start, timeZone: event.timeZone ?? 'Europe/Copenhagen' }, end: { dateTime: event.end, timeZone: event.timeZone ?? 'Europe/Copenhagen' }, extendedProperties: { private: { familyPlannerId: event.id, familyPlannerMarker: 'X-FAMILY-PLANNER', familyPlannerVersion: '1.0' } } }
+export function toGoogleEvent(event: { id: string; title: string; description?: string; start?: string; end?: string; date?: string; nextDate?: string; timeZone?: string }): GoogleCalendarEvent {
+  const start = event.start ? { dateTime: event.start, timeZone: event.timeZone ?? 'Europe/Copenhagen' } : { date: event.date }
+  const end = event.end ? { dateTime: event.end, timeZone: event.timeZone ?? 'Europe/Copenhagen' } : { date: event.nextDate }
+  return { summary: event.title, description: event.description, start, end, extendedProperties: { private: { familyPlannerId: event.id, familyPlannerMarker: 'X-FAMILY-PLANNER', familyPlannerVersion: '1.0' } } }
 }
 
 export function isGoogleEventOwned(event: GoogleCalendarEvent) {

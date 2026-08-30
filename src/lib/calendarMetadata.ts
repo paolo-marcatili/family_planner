@@ -10,6 +10,7 @@ export type CalendarEventMetadata = {
   category: string
   status: string
   recurrence: 'one-off' | 'weekly'
+  importance?: 'critical' | 'important' | 'normal' | 'low'
   linkedTaskId?: string
   effortMinutes?: number
 }

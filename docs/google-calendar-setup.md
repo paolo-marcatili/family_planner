@@ -16,10 +16,10 @@ The app is designed for a **shared Google Calendar** as the authoritative source
 3. Configure the OAuth consent screen. Keep the app in testing while developing and add only the two organizer test users.
 4. Create an OAuth client for a **Web application**.
 5. Add exact authorized JavaScript origins for local development (for example `http://localhost:5173`) and the deployed Pages origin `https://paolo-marcatili.github.io`.
-6. Add exact redirect URIs for the local callback and deployed callback route used by the app. Do not use wildcards.
+6. The app uses the Google Identity Services **token model** in the browser, so login returns through a JavaScript callback rather than sending your Google password to Family Planner. If you later switch to redirect/code flow, add exact callback URIs and a secure code-exchange component; do not use wildcards.
 7. Use the least privilege needed. For creating/updating Family Planner events, the implementation uses `https://www.googleapis.com/auth/calendar.events`; review whether narrower scopes are available for your final design.
 
-The OAuth client ID may be used by a public SPA. The client secret must **not** be put in GitHub, the frontend bundle, `.env` files committed to Git, or GitHub Actions artifacts. A static SPA should use authorization-code + PKCE and short-lived session handling. If Google policy or the required refresh-token behavior needs a confidential client, use a private local companion or revise the no-server architecture; never encode the secret.
+The OAuth client ID may be used by a public SPA. The client secret must **not** be put in GitHub, the frontend bundle, `.env` files committed to Git, or GitHub Actions artifacts. The implemented static SPA boundary uses Google Identity Services with short-lived access tokens held in memory. It does not store a refresh token. If you require unattended/long-lived access, use a private local companion or revise the no-server architecture; never encode a secret in the public app.
 
 ## 3. Configure the app locally
 
@@ -35,13 +35,16 @@ Never add the calendar ID, tokens, or any secret to synthetic fixtures or public
 
 ## 4. Login and first-run flow
 
-1. Click **Connect Google Calendar**.
-2. Generate a cryptographically random `state` and PKCE verifier/challenge in the browser.
-3. Redirect to Google authorization with the exact redirect URI and calendar-events scope.
-4. Verify `state` on return and exchange the authorization code according to Google's public-client flow. Do not place a client secret in the browser.
-5. Store the short-lived session in memory or a carefully scoped browser session; provide logout and disconnect/revoke actions.
-6. List the user's calendars and require explicit selection of the shared calendar. Never guess based on a calendar name.
-7. Perform a read-only test first. Display the selected calendar ID in Settings without exposing tokens.
+1. Open **Settings → Google Calendar Setup**.
+2. Enter and save the public Web OAuth client ID. It is not a password or client secret.
+3. Click **Connect Google Calendar**. Google Identity Services displays the provider-managed consent flow with calendar-list and calendar-events scopes. The app never sees the Google password.
+4. Keep the returned short-lived access token in memory. Do not put a client secret or refresh token in the browser.
+5. Select the authoritative shared calendar and optional proposal-inbox calendar returned by Google. Never guess based on calendar name.
+6. Run **Test calendar read** and verify the event count.
+7. Perform one explicitly confirmed synthetic marked event write/read/update/delete before real use.
+8. Disconnect to revoke the token through Google Identity Services.
+
+Selected calendar IDs are stored only as local configuration. They identify private resources and must not be committed or pasted into public support requests.
 
 ## 5. Calendar event rules
 
