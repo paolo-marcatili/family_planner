@@ -25,4 +25,4 @@ Metadata is an index and provenance record, not a copy of raw work calendars or 
 
 ## Direct sync boundary
 
-`src/lib/calendarSync.ts` defines provider-neutral filtering, write mapping, and marker-scoped removal preview. A real provider adapter must implement create/update/delete with OAuth/API permissions and must re-read the event after writes. Until then, the app offers ICS export, which cannot delete or update calendar events.
+`src/lib/calendarSync.ts` defines provider-neutral filtering, write mapping, and marker-scoped removal preview. A real provider adapter must implement create/update/delete with OAuth/API permissions and must re-read the event after writes. Until then, the app offers ICS export, which cannot delete or update calendar events. The current public prototype's bulk removal changes only its local demo cache; it is not a remote calendar delete.

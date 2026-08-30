@@ -1,6 +1,6 @@
 # Import contract and API
 
-The canonical contract is `packages/plan-schema/weekly-plan.schema.json` (JSON Schema draft 2020-12, version `1.0`). The same validator should be used for file uploads and the future API. The public-safe synthetic example is `packages/plan-schema/example-weekly-plan.json`.
+The canonical contract is `packages/plan-schema/weekly-plan.schema.json` (JSON Schema draft 2020-12, version `1.0`). The same validator should be used for file uploads and the future calendar-provider integration. The public-safe synthetic example is `packages/plan-schema/example-weekly-plan.json`.
 
 ## File import
 
@@ -55,18 +55,18 @@ The lifecycle is `proposed → approved`, `proposed → edited`, `proposed → r
 
 The schema intentionally has no fields for raw email bodies, raw calendar payloads, feed URLs, passwords, access tokens, or confidential meeting titles. A source is a category, not a copy of the source system.
 
-## Future API
+## Future calendar-provider API
 
 ```text
-POST /api/v1/imports/weekly-plan
+POST /provider/calendar/imports/weekly-plan
 Authorization: Bearer <scoped-import-token>
 Idempotency-Key: <unique-request-key>
 Content-Type: application/json
 ```
 
-The token must be scoped to import creation for one household. It must not read family data, administer the backend, or be bundled in the frontend. Requests should be HTTPS-only, schema-validated, rate-limited, size-limited, and idempotent.
+The provider-side token must be scoped to the selected calendar and import operation. It must not administer an unrelated service or be bundled in the public frontend. Requests should be HTTPS-only, schema-validated, rate-limited, size-limited, and idempotent. The shared family calendar remains authoritative; imports create proposed changes until approved.
 
-The endpoint should return an import identifier and proposal count. Repeated imports must not silently overwrite approved records; external IDs and fingerprints should be used for reconciliation.
+The integration should return an import identifier and proposal count. Repeated imports must not silently overwrite approved calendar events; external IDs, provider event IDs, and fingerprints should be used for reconciliation.
 
 ## Privacy rule
 

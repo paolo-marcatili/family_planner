@@ -23,3 +23,5 @@ For a same-day or next-day conflict, show a prominent targeted decision. Reassig
 ## ChatGPT payload guidance
 
 Every request should declare `planning_mode` (`weekly_review`, `incremental_update`, or `urgent_change`), `horizon_days` (7, 14, 21, or 28), `generated_at`, and a list of changed calendar event IDs when incremental. Return only the affected proposals for incremental/urgent requests. Keep work meeting details obfuscated and exclude raw email/calendar payloads.
+
+The app should display the selected mode and horizon in Settings so the request can be reproduced. A new event added by either organizer is not itself a proposal: it is a calendar fact. Only inferred assignment changes, conflict resolutions, or new duties become proposals.

@@ -25,3 +25,7 @@ An encrypted local file is acceptable only when the encryption key is supplied s
 - Log event IDs and operation outcomes, not raw event descriptions or credentials.
 - Add preview and confirmation before export or bulk removal.
 - Never delete an event lacking the `X-FAMILY-PLANNER` marker.
+
+## Shared-calendar implication
+
+Because the calendar—not an application database—is authoritative, a future connector must treat provider event IDs and the `X-FAMILY-PLANNER` metadata marker as security boundaries. A local cache may contain only a copy for rendering and reconciliation. If a provider cannot preserve or expose the marker, disable update/delete operations and offer export only.
