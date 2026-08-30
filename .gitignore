@@ -11,3 +11,4 @@ coverage/
 pb_data/
 imports/
 *.sqlite
+labbooks/
