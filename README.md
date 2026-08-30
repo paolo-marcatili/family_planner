@@ -15,6 +15,10 @@ A privacy-conscious shared weekly planner for two organizers and their household
 
 The demo does **not** connect to Outlook, Gmail, Aula, or a production calendar provider. Edits are stored only as a non-authoritative browser cache and are not shared between organizers. Calendar shortcut cards are intentionally not connected. Do not add Aula feed URLs, raw calendar data, credentials, or confidential work details to this repository.
 
+## Calendar-authoritative operating model
+
+The shared family calendar is the source of truth. When a provider connector is configured, accepted events are created or modified there and carry a small, versioned Family Planner JSON block in their description. The browser cache is only for drafts/settings/weather and is not authoritative. Events without the `X-FAMILY-PLANNER` marker are never changed by Family Planner bulk actions. See [`docs/calendar-authority.md`](docs/calendar-authority.md).
+
 ## Local development
 
 Requirements: Node.js 20+ and npm.
@@ -88,6 +92,18 @@ Each **proposal** has an `external_id`, `type`, `status`, and `source`:
 An import is never an instruction to overwrite the plan. The app should validate the entire envelope, show a preview, deduplicate using `external_id`/fingerprints, and keep each proposal separate until an organizer explicitly **approves**, **edits**, **rejects**, or **defers** it. Approved records become normal events, tasks, work-day statuses, or work blocks. Invalid JSON, unknown enum values, missing required fields, raw source content, and credentials must be rejected.
 
 The same contract is intended for file upload and a future authenticated API. See [`docs/import-api.md`](docs/import-api.md) for the future endpoint and token boundary.
+
+## Non-time-bound tasks
+
+Tasks can remain in the overview without a start/end time. Each task shows Paolo, Anna, Both, or Unassigned, and can be completed with one click. Use **Schedule** to convert it into a linked timed calendar event; the original task remains traceable and is not silently completed.
+
+## Incremental planning
+
+Use **Weekly Review** once per week for a complete reconciliation over a chosen horizon. Use **Incremental Update** when an organizer adds or changes an event: only the affected impact window should be reconsidered, while existing duties remain protected. Use **Urgent Change** for same-day/next-day conflicts. The horizon is configurable to 7, 14, 21, or 28 days; start with 7 days to reduce noise. Reassignments remain proposals until approved. See [`docs/planning-operating-model.md`](docs/planning-operating-model.md).
+
+## Workload and contribution
+
+The Workload view separates scheduled time from household contribution. Donut charts break down organizer time by category; contribution bars use effort estimates, split Both assignments 50/50 by default, and show Unassigned separately. These are discussion indicators, not an objective fairness score.
 
 ## Repository and deployment
 
