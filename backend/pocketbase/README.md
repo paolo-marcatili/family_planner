@@ -2,6 +2,8 @@
 
 This directory prepares a local backend for Family Planner. The current frontend remains usable without it and still defaults to browser-local demo mode.
 
+The machine-readable [`collection-spec.json`](collection-spec.json) is the versioned checklist for the collection set. The frontend adapter at `src/lib/backend.ts` uses only normal authenticated collection requests; it has no admin API path.
+
 ## Option A: Docker Compose
 
 From this directory, run:
@@ -31,6 +33,8 @@ VITE_API_BASE_URL=http://127.0.0.1:8090
 ```
 
 The frontend must use normal user authentication, never an admin token. The app's shared records must be filtered by household membership.
+
+After creating the collections, create two normal organizer accounts in the `users` auth collection. Create one household and two `household_members` records. The application should persist the returned user token in memory or a secure session mechanism, not in source control. Clear the session on logout and refresh it through PocketBase's auth endpoint as appropriate.
 
 ## Backup and reset
 

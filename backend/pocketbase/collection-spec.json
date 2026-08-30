@@ -1,0 +1,8 @@
+{
+  "schema_version": "1.0",
+  "auth_collection": "users",
+  "household_scoped_collections": ["households", "household_members", "people", "events", "tasks", "work_days", "work_blocks", "import_batches", "proposals"],
+  "roles": ["organizer"],
+  "proposal_statuses": ["proposed", "approved", "edited", "rejected", "deferred"],
+  "notes": "Apply the membership-scoped rules in collections.md through the PocketBase admin UI or a reviewed migration. Never commit pb_data or credentials."
+}
