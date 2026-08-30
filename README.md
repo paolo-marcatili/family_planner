@@ -105,3 +105,5 @@ The current demo has no backend. When implementing shared authentication and per
 6. Back up the local `pb_data/` directory while PocketBase is stopped. Test restoring a copy before using the service for real family data.
 
 For production, add HTTPS, a real domain, CORS restricted to the Pages origin, encrypted backups, update monitoring, account recovery, scoped API import tokens, and a documented EU hosting provider. GitHub Pages does not provide any of these backend functions. See [`docs/deployment.md`](docs/deployment.md) and [`docs/privacy.md`](docs/privacy.md).
+
+The repository includes the local backend foundation in [`backend/pocketbase/`](backend/pocketbase/), including Docker Compose, collection/access-rule specification, and backup/reset guidance. It is intentionally not connected to the public demo until authentication and backend persistence are enabled end to end.

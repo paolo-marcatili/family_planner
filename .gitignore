@@ -15,3 +15,4 @@ pb_data/
 imports/
 *.sqlite
 labbooks/
+backend/pocketbase/pb_data/

@@ -1,5 +1,7 @@
 import { ChangeEvent, FormEvent, StrictMode, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import { downloadApprovedIcs } from './lib/calendarExport'
+import { fingerprintProposal, validateWeeklyPlan } from './lib/imports'
 import './styles.css'
 
 type Tab = 'calendar' | 'workload' | 'decisions' | 'imports' | 'settings'
@@ -7,6 +9,7 @@ type Assignee = 'You' | 'Wife' | 'Both' | 'Unassigned'
 type ItemKind = 'event' | 'task'
 type ItemStatus = 'approved' | 'proposed' | 'done' | 'deferred' | 'rejected'
 type Category = 'School' | 'Childcare' | 'Activity' | 'Appointment' | 'Family' | 'Work' | 'Travel' | 'Task' | 'Other'
+type WeatherDay = { date: string; max: number; min: number; rain: number; wind: number; code: number }
 
 type PlannerItem = {
   id: string
@@ -21,6 +24,10 @@ type PlannerItem = {
   recurrence: 'one-off' | 'weekly'
   child?: string
   note?: string
+}
+
+function OwnerChooser({ item, onChoose }: { item: PlannerItem; onChoose: (assignee: Assignee) => void }) {
+  return <div className="owner-chooser" role="group" aria-label={`Assign ${item.title}`} onClick={(event) => event.stopPropagation()}>{(['You', 'Wife', 'Both', 'Unassigned'] as Assignee[]).map((person) => <button key={person} className={person === item.assignee ? 'selected' : ''} onClick={() => onChoose(person)}>{person}</button>)}</div>
 }
 
 const DAYS = [
@@ -58,6 +65,9 @@ const emptyForm = {
   note: '',
 }
 
+const weatherLabels: Record<number, [string, string]> = { 0: ['☀️', 'Clear'], 1: ['🌤️', 'Mostly clear'], 2: ['⛅', 'Partly cloudy'], 3: ['☁️', 'Overcast'], 45: ['🌫️', 'Fog'], 48: ['🌫️', 'Fog'], 51: ['🌦️', 'Drizzle'], 53: ['🌦️', 'Drizzle'], 55: ['🌧️', 'Drizzle'], 61: ['🌧️', 'Rain'], 63: ['🌧️', 'Rain'], 65: ['🌧️', 'Heavy rain'], 71: ['🌨️', 'Snow'], 73: ['🌨️', 'Snow'], 75: ['❄️', 'Heavy snow'], 80: ['🌦️', 'Showers'], 81: ['🌦️', 'Showers'], 82: ['⛈️', 'Heavy showers'], 95: ['⛈️', 'Thunderstorm'] }
+function weatherLabel(code: number) { return weatherLabels[code] ?? ['🌥️', 'Mixed conditions'] }
+
 function readItems(): PlannerItem[] {
   try {
     const stored = window.localStorage.getItem('family-planner-demo-items')
@@ -74,11 +84,28 @@ function App() {
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState(emptyForm)
   const [notice, setNotice] = useState('')
+  const [assigning, setAssigning] = useState<string | null>(null)
+  const [weather, setWeather] = useState<WeatherDay[] | null>(null)
+  const [weatherState, setWeatherState] = useState<'loading' | 'ready' | 'error'>('loading')
   const importInput = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     window.localStorage.setItem('family-planner-demo-items', JSON.stringify(items))
   }, [items])
+
+  useEffect(() => {
+    const cached = window.localStorage.getItem('family-planner-weather')
+    if (cached) {
+      try {
+        const saved = JSON.parse(cached) as { expires: number; days: WeatherDay[] }
+        if (saved.expires > Date.now()) { setWeather(saved.days); setWeatherState('ready'); return }
+      } catch { /* fetch fresh data */ }
+    }
+    fetch('https://api.open-meteo.com/v1/forecast?latitude=55.6761&longitude=12.5683&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,wind_speed_10m_max&timezone=Europe%2FCopenhagen&forecast_days=7')
+      .then((response) => { if (!response.ok) throw new Error('weather request failed'); return response.json() as Promise<{ daily: { time: string[]; weather_code: number[]; temperature_2m_max: number[]; temperature_2m_min: number[]; precipitation_probability_max: number[]; wind_speed_10m_max: number[] } }> })
+      .then((payload) => { const days = payload.daily.time.map((date, index) => ({ date, max: Math.round(payload.daily.temperature_2m_max[index]), min: Math.round(payload.daily.temperature_2m_min[index]), rain: payload.daily.precipitation_probability_max[index], wind: Math.round(payload.daily.wind_speed_10m_max[index]), code: payload.daily.weather_code[index] })); setWeather(days); setWeatherState('ready'); window.localStorage.setItem('family-planner-weather', JSON.stringify({ expires: Date.now() + 30 * 60 * 1000, days })) })
+      .catch(() => setWeatherState('error'))
+  }, [])
 
   const proposals = items.filter((item) => item.status === 'proposed')
   const openTasks = items.filter((item) => item.kind === 'task' && item.status !== 'done' && item.status !== 'rejected')
@@ -132,6 +159,17 @@ function App() {
     showNotice(status === 'approved' ? 'Proposal approved and added to the plan.' : `Proposal marked ${status}.`)
   }
 
+  function setAssignee(id: string, assignee: Assignee) {
+    setItems((current) => current.map((item) => item.id === id ? { ...item, assignee } : item))
+    setAssigning(null)
+    showNotice(`Assigned to ${assignee}.`)
+  }
+
+  function toggleTask(id: string) {
+    setItems((current) => current.map((item) => item.id === id ? { ...item, status: item.status === 'done' ? 'approved' : 'done' } : item))
+    showNotice('Task status updated.')
+  }
+
   function resetDemo() {
     setItems(seedItems)
     showNotice('Demo data reset.')
@@ -143,9 +181,24 @@ function App() {
     const reader = new FileReader()
     reader.onload = () => {
       try {
-        const payload = JSON.parse(String(reader.result)) as { schema_version?: string; proposals?: unknown[] }
-        if (payload.schema_version !== '1.0' || !Array.isArray(payload.proposals)) throw new Error('Unsupported format')
-        showNotice(`Import preview ready: ${payload.proposals.length} proposal(s) found. Review before applying.`)
+        const payload = validateWeeklyPlan(JSON.parse(String(reader.result)))
+        const existingFingerprints = new Set(items.map((item) => item.note?.startsWith('Imported fingerprint: ') ? item.note.slice(22) : ''))
+        const imported = payload.proposals.map((proposal, index): PlannerItem => ({
+          id: `proposal-${proposal.external_id}`,
+          kind: proposal.type === 'task' ? 'task' : 'event',
+          title: proposal.title ?? (proposal.type === 'work_day' ? `Work day · ${proposal.location ?? 'unknown'}` : proposal.type === 'work_block' ? `${proposal.label ?? 'Work'} block` : `Imported ${proposal.type}`),
+          day: proposal.date ? Math.max(0, Math.min(6, Math.round((new Date(`${proposal.date}T12:00:00`).getTime() - new Date(`${payload.week_start}T12:00:00`).getTime()) / 86400000))) : index % 7,
+          start: proposal.start?.slice(11, 16) || '09:00',
+          end: proposal.end?.slice(11, 16) || '10:00',
+          assignee: proposal.suggested_assignee === 'organizer_1' ? 'You' : proposal.suggested_assignee === 'organizer_2' ? 'Wife' : proposal.suggested_assignee === 'both' ? 'Both' : 'Unassigned',
+          category: proposal.type === 'task' ? 'Task' : proposal.source === 'school' ? 'School' : proposal.type === 'work_day' || proposal.type === 'work_block' ? 'Work' : 'Family',
+          status: 'proposed',
+          recurrence: 'one-off',
+          note: `Imported fingerprint: ${fingerprintProposal(proposal)}${proposal.reason ? ` · ${proposal.reason}` : ''}`,
+        }))
+        const fresh = imported.filter((item) => !existingFingerprints.has(item.note?.slice(22) ?? ''))
+        setItems((current) => [...current, ...fresh.filter((item) => !current.some((existing) => existing.id === item.id))])
+        showNotice(`Import preview ready: ${fresh.length} new proposal(s) added to Decisions. Review before approval.`)
         setTab('decisions')
       } catch {
         showNotice('Import rejected: choose a Family Planner JSON 1.0 file.')
@@ -172,8 +225,8 @@ function App() {
       <section className="main-panel">
         <header className="topbar"><div><span className="eyebrow">WEEK OF 7–13 SEPTEMBER 2026</span><h1>{tab === 'calendar' ? 'Plan the week together.' : tabTitle(tab)}</h1></div><div className="top-actions"><button className="quiet-button" onClick={() => setTab('imports')}>Import JSON</button><button className="primary-button" onClick={() => openCreate()}>＋ Add item</button><div className="avatar-pair"><span>Y</span><span>W</span></div></div></header>
         {notice && <div className="toast" role="status">{notice}</div>}
-        {tab === 'calendar' && <CalendarView items={items} onCreate={openCreate} onEdit={openEdit} onAssign={(item) => openEdit(item)} onSync={showNotice} />}
-        {tab === 'workload' && <WorkloadView items={items} byAssignee={byAssignee} onEdit={openEdit} />}
+        {tab === 'calendar' && <CalendarView items={items} onCreate={openCreate} onEdit={openEdit} assigning={assigning} onAssign={(id) => setAssigning(assigning === id ? null : id)} onChooseOwner={setAssignee} onToggleTask={toggleTask} onSync={showNotice} onExport={() => { downloadApprovedIcs(items); showNotice('Approved items exported as an ICS file.') }} weather={weather} weatherState={weatherState} onRetry={() => window.location.reload()} />}
+        {tab === 'workload' && <WorkloadView items={items} byAssignee={byAssignee} onEdit={openEdit} onToggleTask={toggleTask} />}
         {tab === 'decisions' && <DecisionsView proposals={proposals} onEdit={openEdit} onStatus={setItemStatus} />}
         {tab === 'imports' && <ImportsView onChoose={() => importInput.current?.click()} />}
         {tab === 'settings' && <SettingsView onReset={resetDemo} />}
@@ -192,22 +245,29 @@ function tabTitle(tab: Tab) {
   return { workload: 'Balance the load.', decisions: 'Decisions need you.', imports: 'Bring in the week.', settings: 'Make it work for you.', calendar: 'Plan the week together.' }[tab]
 }
 
-function CalendarView({ items, onCreate, onEdit, onAssign, onSync }: { items: PlannerItem[]; onCreate: (day?: number, start?: string) => void; onEdit: (item: PlannerItem) => void; onAssign: (item: PlannerItem) => void; onSync: (message: string) => void }) {
+function CalendarView({ items, onCreate, onEdit, assigning, onAssign, onChooseOwner, onToggleTask, onSync, onExport, weather, weatherState, onRetry }: { items: PlannerItem[]; onCreate: (day?: number, start?: string) => void; onEdit: (item: PlannerItem) => void; assigning: string | null; onAssign: (id: string) => void; onChooseOwner: (id: string, assignee: Assignee) => void; onToggleTask: (id: string) => void; onSync: (message: string) => void; onExport: () => void; weather: WeatherDay[] | null; weatherState: 'loading' | 'ready' | 'error'; onRetry: () => void }) {
   return <>
     <section className="calendar-toolbar"><div className="week-switcher"><button aria-label="Previous week">‹</button><strong>September 7 – 13, 2026</strong><button aria-label="Next week">›</button><button className="today-button">Today</button></div><div className="legend"><span><i className="dot blue" />Suggested</span><span><i className="dot green" />Confirmed</span><span><i className="dot amber" />Needs decision</span></div></section>
+    <WeatherStrip weather={weather} state={weatherState} onRetry={onRetry} />
     <section className="decision-strip"><div><span className="eyebrow amber-text">DECISIONS INBOX</span><strong>{items.filter((item) => item.status === 'proposed').length} items need review</strong><span>Suggested changes remain separate until you approve them.</span></div><button className="outline-button" onClick={() => onEdit(items.find((item) => item.status === 'proposed') ?? items[0])}>Review suggestions →</button></section>
     <section className="calendar-grid" aria-label="Weekly calendar">
       <div className="time-column"><div className="all-day-label">ALL DAY</div>{HOURS.map((hour) => <span key={hour}>{hour}</span>)}</div>
-      {DAYS.map((day, dayIndex) => <div className="day-column" key={day.iso}><button className="day-header" onClick={() => onCreate(dayIndex)}><strong>{day.short}</strong><span>{day.date}</span><em>＋</em></button><div className="day-body">{HOURS.map((hour) => <button className="time-slot" key={hour} aria-label={`Add item ${day.short} ${hour}`} onClick={() => onCreate(dayIndex, hour)} />)}{items.filter((item) => item.day === dayIndex && item.status !== 'rejected').map((item) => <CalendarItem key={item.id} item={item} onEdit={onEdit} onAssign={onAssign} />)}</div></div>)}
+      {DAYS.map((day, dayIndex) => <div className="day-column" key={day.iso}><button className="day-header" onClick={() => onCreate(dayIndex)}><strong>{day.short}</strong><span>{day.date}</span><em>＋</em></button><div className="day-body">{HOURS.map((hour) => <button className="time-slot" key={hour} aria-label={`Add item ${day.short} ${hour}`} onClick={() => onCreate(dayIndex, hour)} />)}{items.filter((item) => item.day === dayIndex && item.status !== 'rejected').map((item) => <CalendarItem key={item.id} item={item} onEdit={onEdit} onAssign={onAssign} onChooseOwner={onChooseOwner} assigning={assigning === item.id} onToggleTask={onToggleTask} />)}</div></div>)}
     </section>
-    <section className="calendar-footer"><div className="sync-heading"><span className="eyebrow">TIME BLOCKING SHORTCUTS</span><h3>Protect the time around the plan.</h3><p>These are connection-ready placeholders. No calendar account is connected in the local demo.</p></div><div className="sync-cards"><SyncCard icon="↗" title="Private calendar" text="Block approved family time" onClick={() => onSync('Private-calendar sync is not connected yet.')} /><SyncCard icon="▣" title="Work calendar" text="Block commute or focus time" onClick={() => onSync('Work-calendar sync is not connected yet.')} /><SyncCard icon="⇄" title="Commute buffer" text="Add travel before and after" onClick={() => onSync('Commute buffers are planned for the calendar integration phase.')} /></div></section>
+    <section className="calendar-footer"><div className="sync-heading"><span className="eyebrow">TIME BLOCKING SHORTCUTS</span><h3>Protect the time around the plan.</h3><p>These are connection-ready placeholders. No calendar account is connected in the local demo.</p><button className="quiet-button export-button" onClick={onExport}>↓ Export approved .ics</button></div><div className="sync-cards"><SyncCard icon="↗" title="Private calendar" text="Block approved family time" onClick={() => onSync('Private-calendar sync is not connected yet.')} /><SyncCard icon="▣" title="Work calendar" text="Block commute or focus time" onClick={() => onSync('Work-calendar sync is not connected yet.')} /><SyncCard icon="⇄" title="Commute buffer" text="Add travel before and after" onClick={() => onSync('Commute buffers are planned for the calendar integration phase.')} /></div></section>
   </>
 }
 
-function CalendarItem({ item, onEdit, onAssign }: { item: PlannerItem; onEdit: (item: PlannerItem) => void; onAssign: (item: PlannerItem) => void }) {
+function WeatherStrip({ weather, state, onRetry }: { weather: WeatherDay[] | null; state: 'loading' | 'ready' | 'error'; onRetry: () => void }) {
+  if (state === 'loading') return <section className="weather-strip loading-weather"><span className="weather-pin">☁</span><span><strong>Copenhagen weather</strong><small>Loading forecast…</small></span></section>
+  if (state === 'error' || !weather) return <section className="weather-strip error-weather"><span className="weather-pin">☁</span><span><strong>Copenhagen weather unavailable</strong><small>Calendar remains available. Check your connection and retry.</small></span><button className="quiet-button" onClick={onRetry}>Retry</button></section>
+  return <section className="weather-strip"><div className="weather-location"><span className="weather-pin">{weatherLabel(weather[0].code)[0]}</span><span><strong>Copenhagen area</strong><small>7-day forecast · metric units</small></span></div><div className="weather-days">{weather.map((day) => <div className="weather-day" key={day.date}><strong>{new Intl.DateTimeFormat('en-DK', { weekday: 'short' }).format(new Date(`${day.date}T12:00:00`))}</strong><span>{weatherLabel(day.code)[0]}</span><b>{day.max}° <small>{day.min}°</small></b><em>{day.rain}% rain</em></div>)}</div></section>
+}
+
+function CalendarItem({ item, onEdit, onAssign, onChooseOwner, assigning, onToggleTask }: { item: PlannerItem; onEdit: (item: PlannerItem) => void; onAssign: (id: string) => void; onChooseOwner: (id: string, assignee: Assignee) => void; assigning: boolean; onToggleTask: (id: string) => void }) {
   const startMinutes = toMinutes(item.start) - 7 * 60
   const endMinutes = toMinutes(item.end) - 7 * 60
-  return <article className={`calendar-item ${item.status} ${item.kind}`} style={{ top: `${Math.max(startMinutes, 0) * 56 / 60}px`, height: `${Math.max(endMinutes - startMinutes, 45) * 56 / 60}px` }} onClick={() => onEdit(item)}><button className="item-title" onClick={(event) => { event.stopPropagation(); onEdit(item) }}>{item.title}</button><span className="item-time">{item.start}–{item.end}</span><button className={`assignee-chip ${item.assignee === 'Unassigned' ? 'unassigned' : ''}`} onClick={(event) => { event.stopPropagation(); onAssign(item) }}>{item.assignee === 'Unassigned' ? 'Assign owner' : item.assignee}</button>{item.recurrence === 'weekly' && <span className="repeat-mark">↻</span>}{item.status === 'proposed' && <span className="proposal-mark">PROPOSED</span>}</article>
+  return <article className={`calendar-item ${item.status} ${item.kind}`} style={{ top: `${Math.max(startMinutes, 0) * 56 / 60}px`, height: `${Math.max(endMinutes - startMinutes, 45) * 56 / 60}px` }} onClick={() => onEdit(item)}>{item.kind === 'task' && <button className={`task-check ${item.status === 'done' ? 'done' : ''}`} aria-label={item.status === 'done' ? 'Mark task open' : 'Confirm task complete'} onClick={(event) => { event.stopPropagation(); onToggleTask(item.id) }}>{item.status === 'done' ? '✓' : ''}</button>}<button className="item-title" onClick={(event) => { event.stopPropagation(); onEdit(item) }}>{item.title}</button><span className="item-time">{item.start}–{item.end}</span><button className={`assignee-chip ${item.assignee === 'Unassigned' ? 'unassigned' : ''}`} onClick={(event) => { event.stopPropagation(); onAssign(item.id) }}>{item.assignee === 'Unassigned' ? 'Assign owner' : item.assignee}</button>{assigning && <OwnerChooser item={item} onChoose={(assignee) => onChooseOwner(item.id, assignee)} />}{item.recurrence === 'weekly' && <span className="repeat-mark">↻</span>}{item.status === 'proposed' && <span className="proposal-mark">PROPOSED</span>}</article>
 }
 
 function toMinutes(value: string) {
@@ -219,9 +279,9 @@ function SyncCard({ icon, title, text, onClick }: { icon: string; title: string;
   return <button className="sync-card" onClick={onClick}><span className="sync-icon">{icon}</span><span><strong>{title}</strong><small>{text}</small></span><span className="arrow">→</span></button>
 }
 
-function WorkloadView({ items, byAssignee, onEdit }: { items: PlannerItem[]; byAssignee: Record<Assignee, number>; onEdit: (item: PlannerItem) => void }) {
+function WorkloadView({ items, byAssignee, onEdit, onToggleTask }: { items: PlannerItem[]; byAssignee: Record<Assignee, number>; onEdit: (item: PlannerItem) => void; onToggleTask: (id: string) => void }) {
   const active = items.filter((item) => item.status !== 'rejected' && item.status !== 'done')
-  return <section className="content-view"><div className="view-intro"><div><span className="eyebrow">RESPONSIBILITY OVERVIEW</span><p>Use this view to spot an uneven week before it becomes a problem.</p></div><button className="quiet-button">This week ▾</button></div><div className="workload-cards">{(['You', 'Wife', 'Both', 'Unassigned'] as Assignee[]).map((person) => <div className={`workload-card ${person === 'Unassigned' ? 'warning-card' : ''}`} key={person}><span>{person}</span><strong>{byAssignee[person]}</strong><small>{person === 'Unassigned' ? 'need decisions' : 'assigned items'}</small><div className="load-bar"><i style={{ width: `${Math.min(byAssignee[person] * 16, 100)}%` }} /></div></div>)}</div><div className="panel-table"><div className="panel-heading"><div><span className="eyebrow">OPEN ITEMS</span><h3>Every responsibility in one place</h3></div><span className="muted">{active.length} active</span></div>{active.map((item) => <button className="table-row" key={item.id} onClick={() => onEdit(item)}><span className={`category-dot ${item.category.toLowerCase()}`} /><span className="row-main"><strong>{item.title}</strong><small>{DAYS[item.day].short} · {item.start} · {item.category}</small></span><span className={item.assignee === 'Unassigned' ? 'row-warning' : 'row-assignee'}>{item.assignee}</span><span>›</span></button>)}</div></section>
+  return <section className="content-view"><div className="view-intro"><div><span className="eyebrow">RESPONSIBILITY OVERVIEW</span><p>Use this view to spot an uneven week before it becomes a problem.</p></div><button className="quiet-button">This week ▾</button></div><div className="workload-cards">{(['You', 'Wife', 'Both', 'Unassigned'] as Assignee[]).map((person) => <div className={`workload-card ${person === 'Unassigned' ? 'warning-card' : ''}`} key={person}><span>{person}</span><strong>{byAssignee[person]}</strong><small>{person === 'Unassigned' ? 'need decisions' : 'assigned items'}</small><div className="load-bar"><i style={{ width: `${Math.min(byAssignee[person] * 16, 100)}%` }} /></div></div>)}</div><div className="panel-table"><div className="panel-heading"><div><span className="eyebrow">OPEN ITEMS</span><h3>Every responsibility in one place</h3></div><span className="muted">{active.length} active</span></div>{active.map((item) => <div className="table-row" key={item.id}><span className={`category-dot ${item.category.toLowerCase()}`} /><span className="row-main"><button className="row-link" onClick={() => onEdit(item)}><strong>{item.title}</strong><small>{DAYS[item.day].short} · {item.start} · {item.category}</small></button></span>{item.kind === 'task' && <button className={`task-check inline ${item.status === 'done' ? 'done' : ''}`} aria-label={item.status === 'done' ? 'Mark task open' : 'Confirm task complete'} onClick={() => onToggleTask(item.id)}>{item.status === 'done' ? '✓' : ''}</button>}<span className={item.assignee === 'Unassigned' ? 'row-warning' : 'row-assignee'}>{item.assignee}</span><span>›</span></div>)}</div></section>
 }
 
 function DecisionsView({ proposals, onEdit, onStatus }: { proposals: PlannerItem[]; onEdit: (item: PlannerItem) => void; onStatus: (id: string, status: ItemStatus) => void }) {

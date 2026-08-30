@@ -19,6 +19,8 @@ For local development:
 
 The current frontend has no backend adapter, so these steps are preparation rather than a complete end-to-end setup.
 
+The repository includes `backend/pocketbase/docker-compose.yml`, `backend/pocketbase/collections.md`, and `backend/pocketbase/README.md` as the canonical local setup assets. `backend/pocketbase/pb_data/` is ignored and must never be committed.
+
 Before production deployment, decide:
 
 - backend provider and data region;
