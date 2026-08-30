@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/family-planner/weekly-plan.schema.json",
+  "title": "Family Planner weekly proposal import",
+  "description": "Privacy-safe, obfuscated proposals produced by an external planning assistant.",
+  "type": "object",
+  "required": ["schema_version", "week_start", "timezone", "generated_at", "proposals"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "week_start": { "type": "string", "format": "date" },
+    "timezone": { "type": "string", "const": "Europe/Copenhagen" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "source_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source_categories": { "type": "array", "items": { "enum": ["work_schedule", "private_calendar", "school", "manual"] } },
+        "notes": { "type": "array", "items": { "type": "string", "maxLength": 500 } }
+      }
+    },
+    "proposals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["external_id", "type", "status", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "external_id": { "type": "string", "pattern": "^[A-Za-z0-9._:-]+$" },
+          "type": { "enum": ["event", "task", "work_day", "work_block"] },
+          "status": { "const": "proposed" },
+          "source": { "enum": ["work_schedule", "private_calendar", "school", "manual"] },
+          "title": { "type": "string", "maxLength": 200 },
+          "person": { "type": "string", "maxLength": 80 },
+          "suggested_assignee": { "enum": ["organizer_1", "organizer_2", "both", "unassigned"] },
+          "date": { "type": "string", "format": "date" },
+          "start": { "type": "string", "format": "date-time" },
+          "end": { "type": "string", "format": "date-time" },
+          "location": { "enum": ["office", "home", "leave", "unknown"] },
+          "work_status": { "enum": ["suggested", "confirmed", "rejected"] },
+          "label": { "enum": ["online", "listen_only", "active", "obfuscated"] },
+          "priority": { "enum": ["critical", "important", "normal", "low"] },
+          "flexibility": { "enum": ["fixed", "flexible", "unknown"] },
+          "reason": { "type": "string", "maxLength": 500 },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "Family Planner",
+  "short_name": "Family Planner",
+  "start_url": "/family_planner/",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#132238",
+  "icons": []
+}

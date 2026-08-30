@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "week_start": "2099-01-05",
+  "timezone": "Europe/Copenhagen",
+  "generated_at": "2099-01-04T18:00:00+01:00",
+  "source_summary": {
+    "source_categories": ["work_schedule", "school"],
+    "notes": ["Synthetic example only; meeting details are intentionally obfuscated."]
+  },
+  "proposals": [
+    {
+      "external_id": "example-workday-2099-01-06",
+      "type": "work_day",
+      "status": "proposed",
+      "source": "work_schedule",
+      "person": "organizer_1",
+      "date": "2099-01-06",
+      "location": "home",
+      "work_status": "suggested",
+      "reason": "Synthetic suggestion: no office requirement represented."
+    },
+    {
+      "external_id": "example-critical-online-block",
+      "type": "work_block",
+      "status": "proposed",
+      "source": "work_schedule",
+      "person": "organizer_1",
+      "start": "2099-01-06T14:00:00+01:00",
+      "end": "2099-01-06T15:00:00+01:00",
+      "label": "online",
+      "priority": "critical",
+      "flexibility": "fixed"
+    },
+    {
+      "external_id": "example-school-task",
+      "type": "task",
+      "status": "proposed",
+      "source": "school",
+      "title": "Synthetic school task",
+      "suggested_assignee": "unassigned",
+      "date": "2099-01-07",
+      "confidence": 0.7
+    }
+  ]
+}
