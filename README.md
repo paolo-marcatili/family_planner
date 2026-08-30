@@ -144,4 +144,6 @@ Passwords cannot be safely encoded into a public GitHub Pages app. Use provider 
 
 For production calendar synchronization, add provider OAuth scopes, exact redirect URIs, HTTPS, token revocation, provider-specific rate/error handling, marker-scoped deletion, and a tested export/import fallback. GitHub Pages does not itself provide synchronization or secret storage. See [`docs/deployment.md`](docs/deployment.md), [`docs/security-credentials.md`](docs/security-credentials.md), and [`docs/privacy.md`](docs/privacy.md).
 
+Google Calendar is the selected source-of-truth provider. Follow [`docs/google-calendar-setup.md`](docs/google-calendar-setup.md) for creating/selecting the shared calendar, Google Cloud OAuth/PKCE setup, login, calendar selection, metadata rules, and pre-production verification. The current public build does not yet use real Google credentials or connect to a calendar.
+
 The older PocketBase preparation in [`backend/pocketbase/`](backend/pocketbase/) is retained for history but is superseded by the shared-calendar architecture. It is not an active event store.

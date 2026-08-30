@@ -22,7 +22,7 @@ nav { display: grid; gap: 5px; } .nav-button { color: #a7b4c5; background: trans
 .weather-strip { background: white; border: 1px solid #e1e7ef; border-radius: 11px; padding: 12px 15px; display: flex; align-items: center; gap: 20px; overflow: auto; }
 .weather-location { display: flex; align-items: center; gap: 9px; min-width: 155px; }
 .weather-pin { width: 30px; height: 30px; display: grid; place-items: center; background: #e7f2f3; border-radius: 8px; font-size: 1.1rem; }
-.quick-actions { position: absolute; z-index: 8; top: calc(100% + 5px); left: 4px; min-width: 190px; display: grid; grid-template-columns: 1fr 1fr; padding: 7px; gap: 3px; background: white; border: 1px solid #d8e2e9; border-radius: 8px; box-shadow: 0 8px 25px #233c5528; }
+.quick-actions { position: fixed; z-index: 2147483647; min-width: 190px; display: grid; grid-template-columns: 1fr 1fr; padding: 7px; gap: 3px; background: white; border: 1px solid #d8e2e9; border-radius: 8px; box-shadow: 0 8px 25px #233c5528; transform: translate(5px, 5px); }
 .quick-actions button { border: 0; border-radius: 5px; color: #4d6680; background: transparent; font-size: .61rem; text-align: left; padding: 6px; }
 .quick-actions button:hover, .quick-actions button.selected { background: #e7f2f0; color: #347a68; font-weight: 800; }
 .quick-label { grid-column: 1 / -1; color: #8a98a7; font-size: .54rem; letter-spacing: .08em; padding: 3px 5px; text-transform: uppercase; }
